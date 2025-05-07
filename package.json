@@ -8,8 +8,9 @@
     "start": "node src/index.js"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.804.0",
+    "@kadena/cryptography-utils": "^0.4.4",
     "@kadena/hd-wallet": "^0.6.1",
-    "@aws-sdk/client-kms": "^3.0.0",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.5.0"
   }
-} 
+}
