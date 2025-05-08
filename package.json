@@ -9,7 +9,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
-    "@kadena/cryptography-utils": "^1.0.0",
+    "@kadena/cryptography-utils": "^0.4.4",
     "crypto": "^1.0.1",
     "dotenv": "^16.0.3",
     "express": "^4.18.2"
