@@ -34,10 +34,23 @@
         .success {
             color: green;
         }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .status.error {
+            background-color: #ffebee;
+        }
+        .status.success {
+            background-color: #e8f5e9;
+        }
     </style>
 </head>
 <body>
     <h1>Kadena Wallet API Test</h1>
+    
+    <div id="apiStatus" class="status">Checking API status...</div>
     
     <h2>Generate Wallet</h2>
     <button id="generateBtn" onclick="generateWallet()">Generate New Wallet</button>
@@ -50,6 +63,25 @@
     <script>
         const API_URL = 'https://kadena-wallet-x8a8.onrender.com';
         let lastGeneratedWallet = null;
+
+        // Check API status on page load
+        window.onload = async function() {
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+                const statusDiv = document.getElementById('apiStatus');
+                if (response.ok) {
+                    statusDiv.textContent = `API Status: Healthy (${data.timestamp})`;
+                    statusDiv.className = 'status success';
+                } else {
+                    throw new Error('API is not healthy');
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('apiStatus');
+                statusDiv.textContent = `API Status: Error - ${error.message}`;
+                statusDiv.className = 'status error';
+            }
+        };
 
         function setLoading(buttonId, isLoading) {
             const button = document.getElementById(buttonId);
@@ -69,12 +101,15 @@
                 const response = await fetch(`${API_URL}/generate-wallet`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
-                    }
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    mode: 'cors'
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || response.statusText}`);
                 }
 
                 const data = await response.json();
@@ -122,8 +157,10 @@
                 const response = await fetch(`${API_URL}/sign`, {
                     method: 'POST',
                     headers: {
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
                     },
+                    mode: 'cors',
                     body: JSON.stringify({
                         transaction,
                         privateKey: lastGeneratedWallet.privateKey
@@ -131,7 +168,8 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.message || response.statusText}`);
                 }
 
                 const data = await response.json();

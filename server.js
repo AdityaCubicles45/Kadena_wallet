@@ -1,20 +1,18 @@
 import express from 'express';
 import { handler } from './src/lambda.js';
 import { genKeyPair } from '@kadena/cryptography-utils';
+import cors from 'cors';
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enable CORS
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
+// Enable CORS with specific options
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 // Middleware to parse JSON bodies with better error handling
 app.use(express.json({
