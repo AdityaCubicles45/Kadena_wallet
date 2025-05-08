@@ -18,7 +18,7 @@ export async function storePrivateKeyInKMS(privateKey) {
     const createKeyCommand = new CreateKeyCommand({
       KeySpec: 'ECC_NIST_P256',
       KeyUsage: 'SIGN_VERIFY',
-      Origin: 'EXTERNAL', // Changed to EXTERNAL since we're importing our own key
+      Origin: 'EXTERNAL',
       Description: 'Kadena Wallet Private Key',
       Tags: [
         {
@@ -40,17 +40,28 @@ export async function storePrivateKeyInKMS(privateKey) {
       })
     );
 
-    // Convert private key to buffer
-    const privateKeyBuffer = Buffer.from(privateKey, 'hex');
+    // Convert private key to buffer and ensure it's properly formatted
+    const cleanPrivateKey = privateKey.trim().replace(/['"]/g, '');
+    if (!/^[0-9a-f]{64}$/.test(cleanPrivateKey)) {
+      throw new Error('Invalid private key format - should be 64 hex characters');
+    }
 
-    // Encrypt the private key using the KMS public key
+    // Create a proper key material structure
+    const keyMaterial = {
+      type: 'KadenaPrivateKey',
+      key: cleanPrivateKey,
+      timestamp: new Date().toISOString()
+    };
+
+    // Convert to buffer and encrypt
+    const keyMaterialBuffer = Buffer.from(JSON.stringify(keyMaterial));
     const encryptedKey = crypto.publicEncrypt(
       {
         key: importParams.PublicKey,
         padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
         oaepHash: 'sha1'
       },
-      privateKeyBuffer
+      keyMaterialBuffer
     );
 
     // Import the encrypted key material
