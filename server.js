@@ -56,10 +56,14 @@ app.all('/generate-wallet', async (req, res) => {
     console.log('Generated public key (first 10 chars):', keyPair.publicKey.substring(0, 10) + '...');
     console.log('Generated private key (first 10 chars):', keyPair.secretKey.substring(0, 10) + '...');
     
+    // Create the Kadena address
+    const kadenaAddress = `k:${keyPair.publicKey}`;
+    
     res.status(200).json({
       message: 'Wallet generated successfully',
       publicKey: keyPair.publicKey,
       privateKey: keyPair.secretKey,
+      address: kadenaAddress,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
