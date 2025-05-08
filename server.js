@@ -2,6 +2,7 @@ import express from 'express';
 import { handler } from './src/lambda.js';
 import { genKeyPair } from '@kadena/cryptography-utils';
 import cors from 'cors';
+import { storePrivateKeyInKMS } from './src/kms.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -52,9 +53,9 @@ app.all('/generate-wallet', async (req, res) => {
     const keyPair = genKeyPair();
     console.log('Wallet generated successfully');
     
-    // Log the generated keys (first few characters only)
-    console.log('Generated public key (first 10 chars):', keyPair.publicKey.substring(0, 10) + '...');
-    console.log('Generated private key (first 10 chars):', keyPair.secretKey.substring(0, 10) + '...');
+    // Store private key in KMS
+    const kmsResult = await storePrivateKeyInKMS(keyPair.secretKey);
+    console.log('Private key stored in KMS');
     
     // Create the Kadena address
     const kadenaAddress = `k:${keyPair.publicKey}`;
@@ -62,8 +63,8 @@ app.all('/generate-wallet', async (req, res) => {
     res.status(200).json({
       message: 'Wallet generated successfully',
       publicKey: keyPair.publicKey,
-      privateKey: keyPair.secretKey,
       address: kadenaAddress,
+      kmsKeyId: kmsResult.keyId,
       timestamp: new Date().toISOString()
     });
   } catch (error) {

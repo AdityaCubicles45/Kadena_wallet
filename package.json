@@ -9,6 +9,7 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.0.0",
     "@kadena/cryptography-utils": "^0.4.4",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
