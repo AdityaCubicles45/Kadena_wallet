@@ -47,8 +47,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Generate new wallet endpoint
-app.post('/generate-wallet', async (req, res) => {
+// Generate new wallet endpoint (both GET and POST)
+app.all('/generate-wallet', async (req, res) => {
   try {
     console.log('Generating new wallet...');
     const keyPair = genKeyPair();
@@ -144,6 +144,16 @@ app.use((err, req, res, next) => {
   res.status(500).json({
     message: 'Internal server error',
     error: err.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 404 handler
+app.use((req, res) => {
+  res.status(404).json({
+    message: 'Not Found',
+    path: req.path,
+    method: req.method,
     timestamp: new Date().toISOString()
   });
 });
