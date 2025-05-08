@@ -5,6 +5,17 @@ import { genKeyPair } from '@kadena/cryptography-utils';
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Enable CORS
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
 // Middleware to parse JSON bodies with better error handling
 app.use(express.json({
   verify: (req, res, buf, encoding) => {
@@ -14,8 +25,7 @@ app.use(express.json({
       } catch (e) {
         res.status(400).json({
           message: 'Invalid JSON format',
-          error: e.message,
-          position: e.message.match(/position (\d+)/)?.[1] || 'unknown'
+          error: e.message
         });
         throw new Error('Invalid JSON');
       }
@@ -31,7 +41,10 @@ app.use((req, res, next) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'healthy' });
+  res.status(200).json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
 });
 
 // Generate new wallet endpoint
@@ -40,16 +53,23 @@ app.post('/generate-wallet', async (req, res) => {
     console.log('Generating new wallet...');
     const keyPair = genKeyPair();
     console.log('Wallet generated successfully');
+    
+    // Log the generated keys (first few characters only)
+    console.log('Generated public key (first 10 chars):', keyPair.publicKey.substring(0, 10) + '...');
+    console.log('Generated private key (first 10 chars):', keyPair.secretKey.substring(0, 10) + '...');
+    
     res.status(200).json({
       message: 'Wallet generated successfully',
       publicKey: keyPair.publicKey,
-      privateKey: keyPair.secretKey
+      privateKey: keyPair.secretKey,
+      timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.error('Error generating wallet:', error);
     res.status(500).json({
       message: 'Error generating wallet',
-      error: error.message
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
@@ -77,7 +97,8 @@ app.post('/sign', async (req, res) => {
         received: {
           hasTransaction: !!transaction,
           hasPrivateKey: !!privateKey
-        }
+        },
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -94,7 +115,8 @@ app.post('/sign', async (req, res) => {
         details: {
           length: cleanPrivateKey.length,
           isHex: /^[0-9a-f]+$/i.test(cleanPrivateKey)
-        }
+        },
+        timestamp: new Date().toISOString()
       });
     }
 
@@ -110,11 +132,25 @@ app.post('/sign', async (req, res) => {
     console.error('Error in sign endpoint:', error);
     res.status(500).json({
       message: 'Error processing request',
-      error: error.message
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({
+    message: 'Internal server error',
+    error: err.message,
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  console.log(`Health check: http://localhost:${port}/health`);
+  console.log(`Generate wallet: http://localhost:${port}/generate-wallet`);
+  console.log(`Sign transaction: http://localhost:${port}/sign`);
 }); 

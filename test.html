@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Kadena Wallet API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Kadena Wallet API Test</h1>
+    
+    <h2>Generate Wallet</h2>
+    <button onclick="generateWallet()">Generate New Wallet</button>
+    <pre id="walletResult">Result will appear here...</pre>
+
+    <h2>Sign Transaction</h2>
+    <button onclick="signTransaction()">Sign Transaction</button>
+    <pre id="signResult">Result will appear here...</pre>
+
+    <script>
+        const API_URL = 'https://kadena-wallet-x8a8.onrender.com';
+        let lastGeneratedWallet = null;
+
+        async function generateWallet() {
+            try {
+                const response = await fetch(`${API_URL}/generate-wallet`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                document.getElementById('walletResult').textContent = JSON.stringify(data, null, 2);
+                lastGeneratedWallet = data;
+            } catch (error) {
+                document.getElementById('walletResult').textContent = `Error: ${error.message}`;
+            }
+        }
+
+        async function signTransaction() {
+            if (!lastGeneratedWallet) {
+                document.getElementById('signResult').textContent = 'Please generate a wallet first';
+                return;
+            }
+
+            const transaction = {
+                networkId: "mainnet01",
+                payload: {
+                    exec: {
+                        data: {
+                            ks: {
+                                pred: "keys-2",
+                                keys: [lastGeneratedWallet.publicKey]
+                            }
+                        },
+                        code: "(coin.transfer \"k:account\" \"k:account\" 1.0)"
+                    }
+                }
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/sign`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        transaction,
+                        privateKey: lastGeneratedWallet.privateKey
+                    })
+                });
+                const data = await response.json();
+                document.getElementById('signResult').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('signResult').textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html> 
