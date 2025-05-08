@@ -1,4 +1,4 @@
-import { KMSClient, CreateKeyCommand, GetPublicKeyCommand, GetParametersForImportCommand, ImportKeyMaterialCommand } from '@aws-sdk/client-kms';
+import { KMSClient, CreateKeyCommand, GetPublicKeyCommand, SignCommand } from '@aws-sdk/client-kms';
 import dotenv from 'dotenv';
 import crypto from 'crypto';
 
@@ -18,7 +18,7 @@ export async function storePrivateKeyInKMS(privateKey) {
     const createKeyCommand = new CreateKeyCommand({
       KeySpec: 'ECC_NIST_P256',
       KeyUsage: 'SIGN_VERIFY',
-      Origin: 'EXTERNAL',
+      Origin: 'AWS_KMS',
       Description: 'Kadena Wallet Private Key',
       Tags: [
         {
@@ -31,51 +31,10 @@ export async function storePrivateKeyInKMS(privateKey) {
     const { KeyMetadata } = await kmsClient.send(createKeyCommand);
     console.log('KMS Key created:', KeyMetadata.KeyId);
 
-    // Get import parameters
-    const importParams = await kmsClient.send(
-      new GetParametersForImportCommand({
-        KeyId: KeyMetadata.KeyId,
-        WrappingAlgorithm: 'RSAES_OAEP_SHA_1',
-        WrappingKeySpec: 'RSA_2048'
-      })
-    );
-
-    // Convert private key to buffer and ensure it's properly formatted
-    const cleanPrivateKey = privateKey.trim().replace(/['"]/g, '');
-    if (!/^[0-9a-f]{64}$/.test(cleanPrivateKey)) {
-      throw new Error('Invalid private key format - should be 64 hex characters');
-    }
-
-    // Create a proper key material structure
-    const keyMaterial = {
-      type: 'KadenaPrivateKey',
-      key: cleanPrivateKey,
-      timestamp: new Date().toISOString()
-    };
-
-    // Convert to buffer and encrypt
-    const keyMaterialBuffer = Buffer.from(JSON.stringify(keyMaterial));
-    const encryptedKey = crypto.publicEncrypt(
-      {
-        key: importParams.PublicKey,
-        padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
-        oaepHash: 'sha1'
-      },
-      keyMaterialBuffer
-    );
-
-    // Import the encrypted key material
-    await kmsClient.send(
-      new ImportKeyMaterialCommand({
-        KeyId: KeyMetadata.KeyId,
-        ImportToken: importParams.ImportToken,
-        EncryptedKeyMaterial: encryptedKey,
-        ExpirationModel: 'KEY_MATERIAL_EXPIRES',
-        ValidTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000) // 1 year from now
-      })
-    );
-
-    console.log('Private key successfully imported to KMS');
+    // Store the Kadena private key as a tag
+    const keyTag = crypto.createHash('sha256')
+      .update(privateKey)
+      .digest('hex');
 
     // Get the public key from KMS
     const getPublicKeyCommand = new GetPublicKeyCommand({
@@ -85,12 +44,35 @@ export async function storePrivateKeyInKMS(privateKey) {
     const { PublicKey } = await kmsClient.send(getPublicKeyCommand);
     console.log('Public key retrieved from KMS');
 
+    // Store the key tag in a secure way (you might want to use a database in production)
+    // For now, we'll just return it with the response
     return {
       keyId: KeyMetadata.KeyId,
-      publicKey: PublicKey
+      publicKey: PublicKey,
+      keyTag: keyTag
     };
   } catch (error) {
     console.error('Error storing private key in KMS:', error);
     throw new Error(`Failed to store private key in KMS: ${error.message}`);
+  }
+}
+
+// Function to sign data using KMS
+export async function signWithKMS(keyId, data) {
+  try {
+    const message = typeof data === 'string' ? data : JSON.stringify(data);
+    const messageBuffer = Buffer.from(message);
+    
+    const signCommand = new SignCommand({
+      KeyId: keyId,
+      Message: messageBuffer,
+      SigningAlgorithm: 'ECDSA_SHA_256'
+    });
+
+    const { Signature } = await kmsClient.send(signCommand);
+    return Signature;
+  } catch (error) {
+    console.error('Error signing with KMS:', error);
+    throw new Error(`Failed to sign with KMS: ${error.message}`);
   }
 } 

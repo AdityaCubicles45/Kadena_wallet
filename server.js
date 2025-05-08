@@ -2,7 +2,7 @@ import express from 'express';
 import { handler } from './src/lambda.js';
 import { genKeyPair } from '@kadena/cryptography-utils';
 import cors from 'cors';
-import { storePrivateKeyInKMS } from './src/kms.js';
+import { storePrivateKeyInKMS, signWithKMS } from './src/kms.js';
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -65,6 +65,7 @@ app.all('/generate-wallet', async (req, res) => {
       publicKey: keyPair.publicKey,
       address: kadenaAddress,
       kmsKeyId: kmsResult.keyId,
+      keyTag: kmsResult.keyTag,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -81,56 +82,27 @@ app.all('/generate-wallet', async (req, res) => {
 app.post('/sign', async (req, res) => {
   try {
     console.log('Received sign request');
-    const { transaction, privateKey } = req.body;
+    const { transaction, kmsKeyId } = req.body;
     
-    // Log request details (safely)
-    console.log('Request details:', {
-      hasTransaction: !!transaction,
-      hasPrivateKey: !!privateKey,
-      transactionType: transaction ? typeof transaction : 'none',
-      privateKeyLength: privateKey ? privateKey.length : 0,
-      privateKeyStart: privateKey ? privateKey.substring(0, 10) + '...' : 'none'
-    });
-    
-    // Validate request body
-    if (!transaction || !privateKey) {
-      console.log('Missing required fields');
+    if (!transaction || !kmsKeyId) {
       return res.status(400).json({
-        message: 'Both transaction and privateKey are required',
+        message: 'Both transaction and kmsKeyId are required',
         received: {
           hasTransaction: !!transaction,
-          hasPrivateKey: !!privateKey
+          hasKmsKeyId: !!kmsKeyId
         },
         timestamp: new Date().toISOString()
       });
     }
 
-    // Convert transaction to string if it's an object
-    const transactionStr = typeof transaction === 'string' 
-      ? transaction 
-      : JSON.stringify(transaction);
-
-    // Validate private key format
-    const cleanPrivateKey = privateKey.trim().replace(/['"]/g, '');
-    if (!/^[0-9a-f]{64}$/.test(cleanPrivateKey)) {
-      return res.status(400).json({
-        message: 'Invalid private key format',
-        details: {
-          length: cleanPrivateKey.length,
-          isHex: /^[0-9a-f]+$/i.test(cleanPrivateKey)
-        },
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    console.log('Calling handler with transaction and private key');
-    const result = await handler({ 
-      transaction: transactionStr, 
-      privateKey: cleanPrivateKey 
-    });
-    console.log('Handler response:', result);
+    // Sign the transaction using KMS
+    const signature = await signWithKMS(kmsKeyId, transaction);
     
-    res.status(result.statusCode).json(JSON.parse(result.body));
+    res.status(200).json({
+      message: 'Transaction signed successfully',
+      signature: signature.toString('base64'),
+      timestamp: new Date().toISOString()
+    });
   } catch (error) {
     console.error('Error in sign endpoint:', error);
     res.status(500).json({
