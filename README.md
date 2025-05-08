@@ -1,180 +1,70 @@
-# Kadena Wallet Generator with AWS KMS Integration
+# Kadena Wallet Generator API
 
-This project generates a Kadena wallet and securely stores the private key in AWS KMS (Key Management Service). It provides a secure way to manage Kadena wallet keys using AWS's managed key service.
+A simple API for generating Kadena wallets and signing transactions.
 
-## Features
+## API Endpoints
 
-- Generate Kadena wallet with public and private keys
-- Support for both Mainnet and Testnet
-- Create Kadena account address
-- Securely store private key in AWS KMS
-- Automatic key encryption and import
-- Key material expiration management
-
-## Prerequisites
-
-- Node.js (v16+)
-- AWS Account with KMS access
-- AWS CLI configured with appropriate credentials
-
-## Installation
-
-1. Clone the repository:
+### Generate Wallet
 ```bash
-git clone <repository-url>
-cd kadena-wallet-kms
+POST /generate-wallet
+```
+Response:
+```json
+{
+  "message": "Wallet generated successfully",
+  "publicKey": "...",
+  "privateKey": "..."
+}
 ```
 
-2. Install dependencies:
+### Sign Transaction
+```bash
+POST /sign
+```
+Request Body:
+```json
+{
+  "transaction": {
+    "networkId": "mainnet01",
+    "payload": {
+      "exec": {
+        "data": {
+          "ks": {
+            "pred": "keys-2",
+            "keys": ["YOUR_PUBLIC_KEY"]
+          }
+        },
+        "code": "(coin.transfer \"k:account\" \"k:account\" 1.0)"
+      }
+    }
+  },
+  "privateKey": "YOUR_PRIVATE_KEY"
+}
+```
+
+## Deployment to Render.com
+
+1. Fork this repository to your GitHub account
+2. Go to [Render.com](https://render.com) and sign up/login
+3. Click "New +" and select "Web Service"
+4. Connect your GitHub repository
+5. Configure the service:
+   - Name: kadena-wallet-api
+   - Environment: Node
+   - Build Command: `npm install`
+   - Start Command: `npm start`
+6. Click "Create Web Service"
+
+## Local Development
+
+1. Install dependencies:
 ```bash
 npm install
 ```
 
-3. Create a `.env` file in the root directory with your AWS credentials:
-```
-AWS_ACCESS_KEY_ID=your_access_key_id
-AWS_SECRET_ACCESS_KEY=your_secret_access_key
-AWS_REGION=your_region
-KMS_KEY_ID=your_kms_key_id
-```
-
-## AWS KMS Setup
-
-1. Create a KMS key:
-   - Go to AWS KMS Console
-   - Click "Create key"
-   - Choose "Symmetric" key type
-   - Set key alias (e.g., "kadena-wallet-key")
-   - Set key administrative permissions
-   - Set key usage permissions
-   - Note down the Key ID
-
-2. Configure IAM permissions:
-   - Ensure your IAM user/role has these permissions:
-     - `kms:CreateKey`
-     - `kms:ImportKeyMaterial`
-     - `kms:GetParametersForImport`
-     - `kms:DescribeKey`
-     - `kms:ListKeys`
-     - `kms:ListAliases`
-
-## Usage
-
-Run the application with network selection:
-
+2. Start the server:
 ```bash
-# For testnet (default)
 npm start
-
-# For mainnet
-npm start mainnet
 ```
 
-The script will:
-1. Generate a new Kadena wallet for the specified network
-2. Display the network information, public key, private key, and account address
-3. Import the private key into AWS KMS
-4. Show the KMS import confirmation
-
-Example output for testnet:
-```
-Generated Kadena Wallet (TESTNET):
-Network ID: testnet04
-Chain ID: 0
-Public Key: 059b0a13a8ea6dea90cd1d215669ea6b0c67cd07d3e0249092bbd794ed1bfc03
-Private Key: 059e481475469373224a5abce161cbbe1f0917e855882d82573a67e246fc703d
-Account: k:059b0a13a8ea6dea90cd1d215669ea6b0c67cd07d3e0249092bbd794ed1bfc03
-Successfully imported TESTNET key to KMS: {
-  KeyMaterialId: '6cf8e0664ce209b3b3a2cd1257ccbb581d87708c9bf5a2396e7e2177bea53145'
-}
-```
-
-## Network Configuration
-
-The application supports two networks:
-
-1. **Testnet** (default):
-   - Network ID: `testnet04`
-   - Chain ID: `0`
-   - Account Prefix: `k:`
-   - Use for development and testing
-
-2. **Mainnet**:
-   - Network ID: `mainnet01`
-   - Chain ID: `0`
-   - Account Prefix: `k:`
-   - Use for production
-
-## Security Features
-
-1. **Key Generation**:
-   - Uses `@kadena/hd-wallet` for secure key generation
-   - Generates cryptographically secure random keys
-   - Network-specific key generation
-
-2. **KMS Integration**:
-   - Private key is encrypted before transmission
-   - Uses RSA-OAEP encryption for key material
-   - Sets key material expiration (1 year by default)
-   - Leverages AWS KMS for secure key storage
-   - Network-specific key storage
-
-3. **Best Practices**:
-   - Never stores private keys in plain text
-   - Uses environment variables for sensitive data
-   - Implements proper error handling
-   - Follows AWS KMS security best practices
-
-## Project Structure
-
-```
-kadena-wallet-kms/
-├── src/
-│   └── index.js      # Main application code
-├── .env              # Environment variables (create this)
-├── package.json      # Project dependencies
-└── README.md         # This file
-```
-
-## Dependencies
-
-- `@kadena/hd-wallet`: For Kadena wallet generation
-- `@aws-sdk/client-kms`: For AWS KMS integration
-- `dotenv`: For environment variable management
-- `crypto`: For key encryption (Node.js built-in)
-
-## Error Handling
-
-The application includes error handling for:
-- Wallet generation failures
-- KMS import failures
-- Environment variable validation
-- Key encryption errors
-- Invalid network selection
-
-## Security Notes
-
-- Never commit your `.env` file
-- Store your private keys securely
-- Use AWS KMS for production environments
-- Consider using AWS IAM roles instead of access keys
-- Regularly rotate your AWS access keys
-- Monitor KMS usage through AWS CloudTrail
-- Use testnet for development and testing
-- Verify network settings before using mainnet
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-MIT
-
-## Support
-
-For issues and feature requests, please create an issue in the repository. 
+The server will run on http://localhost:3000 
